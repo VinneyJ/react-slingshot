@@ -2,25 +2,85 @@
 # See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
 
+commands:
+  print_pipeline_id:
+    steps:
+      - run: echo $CIRCLE_WORKFLOW_ID
+
+defaults: &defaults
+  docker:
+    - image: circleci/node:13.8.0
+
+
+
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
-  say-hello:
+  build:
     # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
-    docker:
-      - image: cimg/base:stable
+    <<: *defaults
     # Add steps to the job
     # See: https://circleci.com/docs/2.0/configuration-reference/#steps
     steps:
       - checkout
-      - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+      - run: npm i
+      - run: npm run lint
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - output.txt
+          
+  test:
+    # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    <<: *defaults
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      - run: npm i
+      - run: npm run test
+      # - attach_workspace:
+      #     at: ~/
+
+      # - run:
+      #     name: "Print content in persisted file"
+      #     command: cat ~/output.txt
+
+  analyze:
+  # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+  # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+    <<: *defaults
+    # Add steps to the job
+    # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+    steps:
+      - checkout
+      - run: npm audit
+
+  # return_job_fail:
+  # # Specify the execution environment. You can specify an image from Dockerhub or use one of our Convenience Images from CircleCI's Developer Hub.
+  # # See: https://circleci.com/docs/2.0/configuration-reference/#docker-machine-macos-windows-executor
+  #   <<: *defaults
+  #   # Add steps to the job
+  #   # See: https://circleci.com/docs/2.0/configuration-reference/#steps
+  #   steps:
+  #     - checkout
+  #     - run: exit 1
+  #     - run:
+  #         name: "Your tests failed"
+  #         command: echo "Your tests failed successfully"
+  #         when: on_fail
+
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   say-hello-workflow:
     jobs:
-      - say-hello
+      - build
+      - test:
+          requires: [build]
+      - analyze: 
+          requires: [test]
+      #- return_job_fail
